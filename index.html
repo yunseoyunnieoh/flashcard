@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flashcard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 20px;
+      letter-spacing: -0.3px;
+    }
+
+    /* 탭 */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .tab {
+      padding: 8px 20px;
+      border-radius: 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      background: #dde1e7;
+      color: #555;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    /* 카드 영역 */
+    .scene {
+      width: 100%;
+      max-width: 420px;
+      height: 240px;
+      perspective: 800px;
+      margin-bottom: 28px;
+      cursor: pointer;
+    }
+    .card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.45s ease;
+    }
+    .card.flipped { transform: rotateY(180deg); }
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .card-front { background: white; }
+    .card-back  { background: #1e40af; transform: rotateY(180deg); }
+
+    .card-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 12px;
+    }
+    .card-back .card-label { color: rgba(255,255,255,0.6); }
+
+    .card-word {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      text-align: center;
+    }
+    .card-back .card-word {
+      font-size: 1.5rem;
+      color: white;
+    }
+
+    .card-hint {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: #bbb;
+    }
+    .card-back .card-hint { color: rgba(255,255,255,0.5); }
+
+    /* 버튼 */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .btn-answer {
+      flex: 1;
+      padding: 14px 0;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-answer:active { transform: scale(0.97); }
+    .btn-again { background: #fee2e2; color: #dc2626; }
+    .btn-good  { background: #d1fae5; color: #059669; }
+    .btn-easy  { background: #dbeafe; color: #2563eb; }
+    .btn-answer:disabled { opacity: 0.4; cursor: default; }
+
+    /* 진행 상태 */
+    .progress {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 16px;
+    }
+
+    /* 빈 상태 */
+    .empty {
+      text-align: center;
+      color: #999;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      padding: 40px 0;
+    }
+
+    /* 단어 추가 폼 */
+    .form-wrap {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .form-wrap label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+    .form-wrap input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+    .form-wrap input:focus { border-color: #3b82f6; }
+    .btn-add {
+      width: 100%;
+      padding: 13px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-add:hover { background: #2563eb; }
+    .btn-add:disabled { background: #93c5fd; cursor: default; }
+
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1f2937;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: transform 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<h1>Flashcard</h1>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('study')">복습</button>
+  <button class="tab" onclick="switchTab('add')">단어 추가</button>
+</div>
+
+<!-- 복습 탭 -->
+<div id="study-tab">
+  <div class="progress" id="progress"></div>
+  <div class="scene" id="scene" onclick="flipCard()">
+    <div class="card" id="card">
+      <div class="card-face card-front">
+        <div class="card-label">WORD</div>
+        <div class="card-word" id="front-word">불러오는 중...</div>
+        <div class="card-hint">탭해서 뜻 확인</div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-label">MEANING</div>
+        <div class="card-word" id="back-meaning"></div>
+        <div class="card-hint">얼마나 기억했나요?</div>
+      </div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-answer btn-again" id="btn-again" onclick="answer(1)" disabled>Again</button>
+    <button class="btn-answer btn-good"  id="btn-good"  onclick="answer(3)" disabled>Good</button>
+    <button class="btn-answer btn-easy"  id="btn-easy"  onclick="answer(5)" disabled>Easy</button>
+  </div>
+</div>
+
+<!-- 단어 추가 탭 -->
+<div id="add-tab" style="display:none; width:100%; max-width:420px;">
+  <div class="form-wrap">
+    <label>단어</label>
+    <input type="text" id="input-word" placeholder="e.g. ephemeral" />
+    <label>뜻</label>
+    <input type="text" id="input-meaning" placeholder="e.g. 일시적인" />
+    <button class="btn-add" id="btn-add" onclick="addWord()">추가하기</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = 'https://script.google.com/macros/s/AKfycbzGnrhckjt3DzMXXjrQ_0sk-4kv9rwcsHUCO0ACmjfwgEkxzU3MGnpvB7cGk_X0sML-/exec';
+
+  let cards = [];
+  let current = 0;
+  let flipped = false;
+
+  // 탭 전환
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('study-tab').style.display = tab === 'study' ? 'flex' : 'none';
+    document.getElementById('study-tab').style.flexDirection = 'column';
+    document.getElementById('study-tab').style.alignItems = 'center';
+    document.getElementById('study-tab').style.width = '100%';
+    document.getElementById('add-tab').style.display = tab === 'add' ? 'block' : 'none';
+  }
+
+  // 카드 뒤집기
+  function flipCard() {
+    if (cards.length === 0) return;
+    flipped = !flipped;
+    document.getElementById('card').classList.toggle('flipped', flipped);
+    if (flipped) {
+      ['btn-again','btn-good','btn-easy'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+    }
+  }
+
+  // 카드 로드
+  async function loadCards() {
+    document.getElementById('front-word').textContent = '불러오는 중...';
+    try {
+      const res = await fetch(API);
+      cards = await res.json();
+      current = 0;
+      showCard();
+    } catch (e) {
+      document.getElementById('front-word').textContent = '연결 오류';
+      console.error(e);
+    }
+  }
+
+  function showCard() {
+    resetButtons();
+    if (cards.length === 0) {
+      document.getElementById('scene').style.display = 'none';
+      document.querySelector('.btn-row').style.display = 'none';
+      document.getElementById('progress').innerHTML =
+        '<div class="empty">오늘 복습할 카드가 없습니다.<br>단어를 추가하거나 내일 다시 확인하세요.</div>';
+      return;
+    }
+    document.getElementById('scene').style.display = 'block';
+    document.querySelector('.btn-row').style.display = 'flex';
+    document.getElementById('progress').textContent = `${current + 1} / ${cards.length}`;
+    document.getElementById('front-word').textContent = cards[current].word;
+    document.getElementById('back-meaning').textContent = cards[current].meaning;
+    document.getElementById('card').classList.remove('flipped');
+    flipped = false;
+  }
+
+  function resetButtons() {
+    ['btn-again','btn-good','btn-easy'].forEach(id => {
+      document.getElementById(id).disabled = true;
+    });
+  }
+
+  // 평가 후 업데이트
+  async function answer(quality) {
+    const c = cards[current];
+    await fetch(API, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'update',
+        row: c.row,
+        interval: c.interval,
+        ease_factor: c.ease_factor,
+        repetitions: c.repetitions,
+        quality
+      })
+    });
+    current++;
+    if (current >= cards.length) {
+      cards = [];
+      showCard();
+    } else {
+      showCard();
+    }
+  }
+
+  // 단어 추가
+  async function addWord() {
+    const word = document.getElementById('input-word').value.trim();
+    const meaning = document.getElementById('input-meaning').value.trim();
+    if (!word || !meaning) { showToast('단어와 뜻을 모두 입력해주세요.'); return; }
+
+    const btn = document.getElementById('btn-add');
+    btn.disabled = true;
+    btn.textContent = '추가 중...';
+
+    try {
+      await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add', word, meaning })
+      });
+      document.getElementById('input-word').value = '';
+      document.getElementById('input-meaning').value = '';
+      showToast(`"${word}" 추가 완료`);
+    } catch (e) {
+      showToast('오류가 발생했습니다.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '추가하기';
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // 초기 로드
+  loadCards();
+</script>
+</body>
+</html>
